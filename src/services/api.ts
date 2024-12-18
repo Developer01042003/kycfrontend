@@ -30,7 +30,7 @@ export const authService = {
         
         const response = await axios({
             method: 'post',
-            url: 'http://localhost:8000/api/auth/signup/',
+            url: 'https://creativeid.onrender.com/api/auth/signup/',
             data: credentials,
             headers: {
                 'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
         const response = await axios({
             method: 'post',
-            url: 'http://localhost:8000/api/auth/login/',
+            url: 'https://creativeid.onrender.com/api/auth/login/',
             data: credentials,
             headers: {
                 'Content-Type': 'application/json',
