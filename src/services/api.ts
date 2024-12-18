@@ -9,7 +9,7 @@ import {
 } from '../types/auth';
 
 const api = axios.create({
-    baseURL: 'https://creativeiddd.onrender.com/api/auth',
+    baseURL: 'https://creativeid.onrender.com/api/auth',
     headers: {
         'Content-Type': 'application/json',
     }
