@@ -1,10 +1,11 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Camera } from 'lucide-react';
 import { authService } from '../services/api';
+import * as faceapi from 'face-api.js';
 
 const kycSchema = z.object({
   full_name: z.string().min(3, 'Full name must be at least 3 characters'),
@@ -23,6 +24,53 @@ export const KYC = () => {
     resolver: zodResolver(kycSchema),
   });
 
+  const [blinkCount, setBlinkCount] = useState(0);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+    };
+    loadModels();
+  }, []);
+
+  const detectBlink = async () => {
+    if (webcamRef.current) {
+      const video = webcamRef.current.video;
+      const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+      if (detections) {
+        const leftEye = detections.landmarks.getLeftEye();
+        const rightEye = detections.landmarks.getRightEye();
+        const leftEAR = calculateEAR(leftEye);
+        const rightEAR = calculateEAR(rightEye);
+
+        if (leftEAR < 0.2 && rightEAR < 0.2) {
+          setBlinkCount(prev => prev + 1);
+        }
+      }
+    }
+  };
+
+  const calculateEAR = (eye) => {
+    const a = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const b = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    const c = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+    return (a + b) / (2.0 * c);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      detectBlink();
+    }, 100);
+
+    if (blinkCount >= 2) {
+      capture();
+      clearInterval(interval);
+    }
+
+    return () => clearInterval(interval);
+  }, [blinkCount]);
+
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
@@ -32,6 +80,7 @@ export const KYC = () => {
 
   const retake = () => {
     setSelfieImage(null);
+    setBlinkCount(0);
   };
 
   const dataURLtoFile = (dataurl: string, filename: string): File => {
@@ -65,7 +114,6 @@ export const KYC = () => {
       });
 
       alert('KYC submitted successfully');
-      // Optionally redirect or show success message
     } catch (error: any) {
       console.error('KYC submission failed:', error);
       alert(error.response?.data?.error || 'KYC submission failed');
@@ -151,14 +199,7 @@ export const KYC = () => {
                     screenshotFormat="image/jpeg"
                     className="w-full rounded-lg"
                   />
-                  <button
-                    type="button"
-                    onClick={capture}
-                    className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 hover:bg-blue-700"
-                  >
-                    <Camera className="h-5 w-5" />
-                    <span>Capture</span>
-                  </button>
+                  <p className="text-center mt-2 text-gray-600">Blink twice to capture</p>
                 </>
               ) : (
                 <div className="relative">
